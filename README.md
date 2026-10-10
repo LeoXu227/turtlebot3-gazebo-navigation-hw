@@ -1,5 +1,15 @@
 # TurtleBot3 Gazebo Navigation Course
 
+## Student submission — Xiyuan Xu (LeoXu227)
+
+The only code I implemented is `load()` and `infer()` in
+[`src/tb3_detector/tb3_detector/detector_core.py`](src/tb3_detector/tb3_detector/detector_core.py).
+
+- Report: [`report/CSE398_Lab3a_Report.pdf`](report/CSE398_Lab3a_Report.pdf)
+- Demo: [`report/navigation_demo.mp4`](report/navigation_demo.mp4)
+
+`load()` opens `tb3det_yolo26n.pt`. `infer()` returns person, trash-can, and chair boxes from one camera image. The rest of this repository is the course starter.
+
 A ROS 2 course workspace for **object-based semantic navigation** on a
 simulated TurtleBot3. The robot explores an unknown room on its own, builds a
 SLAM map, recognises the objects it passes and remembers where they are — so

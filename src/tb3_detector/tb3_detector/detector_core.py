@@ -182,13 +182,19 @@ class DetectorCore:
         The stub below intentionally does NOT raise, so that the unmodified
         course repo starts up and publishes empty detections.
         """
-        # TODO(student): replace this stub with real model loading.
-        logger.warning(
-            "DetectorCore.load(): STUB — no model loaded. "
-            "detector_node will publish EMPTY detections until you implement "
-            "DetectorCore (see INSTRUCTIONS.md)."
-        )
-        self._model = None
+        if not _ULTRALYTICS_AVAILABLE:
+            raise RuntimeError(
+                "ultralytics is not installed. "
+                "Install with: pip install 'ultralytics==8.4.31'"
+            )
+        if not self.model_path.is_file():
+            raise FileNotFoundError(
+                f"YOLO weights not found: {self.model_path}. "
+                "Rebuild with: colcon build --symlink-install --packages-select tb3_detector"
+            )
+        self._model = _UltralyticsYOLO(str(self.model_path))
+        self._model.to(self.device)
+        logger.info("Model loaded. Classes: %s", list(self._model.names.values()))
 
     # ------------------------------------------------------------------
     def infer(self, bgr_image) -> list[dict]:
@@ -228,8 +234,42 @@ class DetectorCore:
           - Optional: if self.enable_tracking, use self._model.track(...,
             persist=True) and fill "track_id" from box.id.
         """
-        # TODO(student): replace this stub with real YOLO inference.
-        return []
+        if self._model is None:
+            raise RuntimeError(
+                "DetectorCore.load() has not been called; model is not loaded."
+            )
+
+        kwargs = dict(
+            conf=self.conf_threshold,
+            device=self.device,
+            verbose=False,
+        )
+        if self.enable_tracking:
+            results = self._model.track(bgr_image, persist=True, **kwargs)
+        else:
+            results = self._model.predict(bgr_image, **kwargs)
+
+        detections: list[dict] = []
+        for result in results:
+            boxes = result.boxes
+            if boxes is None:
+                continue
+            for box in boxes:
+                label = result.names[int(box.cls)]
+                if self.class_filter is not None and label not in self.class_filter:
+                    continue
+                track_id = None
+                if self.enable_tracking and getattr(box, "id", None) is not None:
+                    track_id = int(box.id[0])
+                detections.append(
+                    {
+                        "label": label,
+                        "conf": float(box.conf),
+                        "bbox_xyxy": box.xyxy[0].tolist(),
+                        "track_id": track_id,
+                    }
+                )
+        return detections
 
     # ------------------------------------------------------------------
     @property
